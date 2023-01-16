@@ -1,0 +1,5 @@
+*vcxproj*
+Resources/
+.vs/
+x64/
+*.tga
