@@ -56,6 +56,14 @@ int edge2d(ipoint2d const& a, ipoint2d const& b, ipoint2d const& p) {
 // approach would be more efficient in serial software rendering explicitly, but its poor parallelisation
 // means that for any SIMD capable processor or hardware implementation this approach is preferred.
 void drawTriangle(ipoint2d const& a, ipoint2d const& b, ipoint2d const& c, TGAImage& img, const TGAColor& col) {
+
+    int area = edge2d(a, b, c);
+    // if area 0 then degenerate, if area <0 then backfacing (assuming all triangles correctly
+    // wound CCW), so reject early
+    if (area <= 0) {
+        return;
+    }
+
     // compute bounding box of triangle
     ipoint2d bbMin = ipoint2d{ std::min(std::min(a.x, b.x), c.x),
         std::min(std::min(a.y, b.y), c.y) };
