@@ -1,10 +1,13 @@
 #include <assimp/Importer.hpp>
 #include <assimp/postprocess.h>
 #include <assimp/scene.h>
+#include <glm/glm.hpp>
+#include "glm/gtc/matrix_transform.hpp"
 
 #include "tgaimage.h"
 #include "rasterizer.h"
 #include "tests.h"
+#include "vertex_processing.h"
 
 #include <iostream>
 #include <vector>
@@ -27,14 +30,17 @@ void lineTest() {
 	lines.write_tga_file("linetest.tga");
 }
 
-// Wireframe drawing test
-void orthogonalFaceModelTest() {
-    int width = 1000;
-    int height = 1000;
+// Model drawing test (wireframe + random colours, perspective flag controls whether perspective projection is actually applied or not)
+void faceModelTest(bool perspective) {
+    int width = 1280;
+    int height = 720;
     std::string modelPath = "Resources\\african_head.obj";
 
     TGAImage wireframe(width, height, TGAImage::RGB);
     TGAImage triangular(width, height, TGAImage::RGB);
+
+    glm::mat4 view = glm::lookAt(glm::vec3(50, 50, 100), glm::vec3(0.0), glm::vec3(0.0, 1.0, 0.0));
+    glm::mat4 projection = createProjectionMatrix(glm::radians(70.0), (float)width / height, 0.1, 1000.0);
 
     Assimp::Importer importer;
     const aiScene* aScene = importer.ReadFile(modelPath,
@@ -56,8 +62,13 @@ void orthogonalFaceModelTest() {
         vertexPositions.reserve(aMesh->mNumVertices);
         for (int i = 0; i < aMesh->mNumVertices; i++) {
             aiVector3D assimpVec = aMesh->mVertices[i];
-            vertexPositions.push_back(glm::vec3(assimpVec.x, assimpVec.y, assimpVec.z));
+            glm::vec3 vertex = glm::vec3(assimpVec.x, assimpVec.y, assimpVec.z);
+            if (perspective) {
+                vertex = perspectiveDivide(projection * view * glm::vec4(vertex, 1.0));
+            }
+            vertexPositions.push_back(vertex);
         }
+
 
         // Iterate over each face and draw the lines forming the face into wireframe image, and
         // the triangles themselves into the triangular image

@@ -1,5 +1,5 @@
 #pragma once
 
 void lineTest();
-void orthogonalFaceModelTest();
+void faceModelTest(bool perspective = false);
 void triangleTest();
