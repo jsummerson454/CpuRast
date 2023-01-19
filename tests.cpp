@@ -34,6 +34,10 @@ void lineTest() {
 void faceModelTest(bool perspective) {
     int width = 1280;
     int height = 720;
+    float* zbuffer = new float[height*width];
+    for (int i = 0; i < height * width; i++) {
+        zbuffer[i] = 2.0;
+    }
     std::string modelPath = "Resources\\african_head.obj";
 
     TGAImage wireframe(width, height, TGAImage::RGB);
@@ -63,6 +67,7 @@ void faceModelTest(bool perspective) {
         for (int i = 0; i < aMesh->mNumVertices; i++) {
             aiVector3D assimpVec = aMesh->mVertices[i];
             glm::vec3 vertex = glm::vec3(assimpVec.x, assimpVec.y, assimpVec.z);
+            // apply MVP and perspective divide, end up with NDC coordinates
             if (perspective) {
                 vertex = perspectiveDivide(projection * view * glm::vec4(vertex, 1.0));
             }
@@ -75,6 +80,7 @@ void faceModelTest(bool perspective) {
         for (unsigned int i = 0; i < aMesh->mNumFaces; i++) {
             aiFace face = aMesh->mFaces[i];
             ipoint2d triangle[3];
+            float triangleDepths[3];
             for (unsigned int j = 0; j < face.mNumIndices; j++) {
                 int i0 = face.mIndices[j];
                 int i1 = face.mIndices[(j + 1) % face.mNumIndices];
@@ -82,6 +88,8 @@ void faceModelTest(bool perspective) {
                 glm::vec3 v0 = vertexPositions[i0];
                 glm::vec3 v1 = vertexPositions[i1];
 
+                // converting to screenspace (from NDC if perspective enabled, or directly from model
+                // coords which in range -1 to 1)
                 int x0 = (v0.x + 1.) * width / 2.;
                 int y0 = (v0.y + 1.) * height / 2.;
                 int x1 = (v1.x + 1.) * width / 2.;
@@ -90,28 +98,23 @@ void faceModelTest(bool perspective) {
                 drawLine(x0, y0, x1, y1, wireframe, white);
 
                 triangle[j] = ipoint2d{ x0, y0 };
+                // we also require the depth, so convert it from the [-1, 1] range to [0, 1] for now
+                // TODO - scale values to fit the buffer size as fixed point, i.e. values in range [0,255] for uint 8 buffer 
+                // (see https://www.khronos.org/opengl/wiki/Depth_Buffer_Precision)
+                triangleDepths[j] = (v0.z + 1.0)/2.0;
+
             }
 
             TGAColor randomColor = TGAColor(rand() % 255, rand() % 255, rand() % 255, 255);
-            drawTriangle(triangle[0], triangle[1], triangle[2], triangular, randomColor);
+            drawTriangle(triangle[0], triangle[1], triangle[2],
+                         triangleDepths[0], triangleDepths[1], triangleDepths[2],
+                         zbuffer, triangular, randomColor);
         }
     }
     wireframe.flip_vertically(); // so that origin (0,0) is bottom left, not top left
     wireframe.write_tga_file("wireframe.tga");
     triangular.flip_vertically();
     triangular.write_tga_file("triangular.tga");
-}
 
-// Triangle Drawing Test
-void triangleTest() {
-    int width = 300;
-    int height = 100;
-    TGAImage triangles(width, height, TGAImage::RGB);
-    drawTriangle(ipoint2d{ -20, -20 }, ipoint2d{ 50, -20 }, ipoint2d{ -20, 50 }, triangles, green);
-    drawTriangle(ipoint2d{ 0, 0 }, ipoint2d{ 30, 10 }, ipoint2d{ 10, 30 }, triangles, red);
-    drawTriangle(ipoint2d{ 250, 10 }, ipoint2d{ 140, 50 }, ipoint2d{ 160, 5 }, triangles, white);
-    drawTriangle(ipoint2d{ 170, 50 }, ipoint2d{ 140, 50 }, ipoint2d{ 250, 10 }, triangles, blue);
-
-    triangles.flip_vertically(); // so that origin (0,0) is bottom left, not top left
-    triangles.write_tga_file("triangles.tga");
+    delete zbuffer;
 }

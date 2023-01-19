@@ -4,9 +4,7 @@
 
 int main(int argc, char** argv) {
     //lineTest();
-	//triangleTest();
-	//orthogonalFaceModelTest();
-	faceModelTest();
+	faceModelTest(true);
 
 	return 0;
 }

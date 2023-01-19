@@ -55,7 +55,9 @@ int edge2d(ipoint2d const& a, ipoint2d const& b, ipoint2d const& p) {
 // would draw a triangle, and hence is not well suited for serial CPU rendering - a scanline rasterization
 // approach would be more efficient in serial software rendering explicitly, but its poor parallelisation
 // means that for any SIMD capable processor or hardware implementation this approach is preferred.
-void drawTriangle(ipoint2d const& a, ipoint2d const& b, ipoint2d const& c, TGAImage& img, const TGAColor& col) {
+void drawTriangle(ipoint2d const& a, ipoint2d const& b, ipoint2d const& c,
+                  float depthA, float depthB, float depthC,
+                  float* zbuffer, TGAImage& img, const TGAColor& col) {
 
     int area = edge2d(a, b, c);
     // if area 0 then degenerate, if area <0 then backfacing (assuming all triangles correctly
@@ -63,6 +65,7 @@ void drawTriangle(ipoint2d const& a, ipoint2d const& b, ipoint2d const& c, TGAIm
     if (area <= 0) {
         return;
     }
+    float area_f = area;
 
     // compute bounding box of triangle
     ipoint2d bbMin = ipoint2d{ std::min(std::min(a.x, b.x), c.x),
@@ -80,8 +83,8 @@ void drawTriangle(ipoint2d const& a, ipoint2d const& b, ipoint2d const& c, TGAIm
     // Iterate over every pixel in bounding box, if pixel is within triangle (determined via edge signed 
     // distance functions, which closely relate to barycentric coordinates) then draw it.
     ipoint2d p{};
-    for (p.x = bbMin.x; p.x <= bbMax.x; p.x++) {
-        for (p.y = bbMin.y; p.y <= bbMax.y; p.y++) {
+    for (p.y = bbMin.y; p.y <= bbMax.y; p.y++) {
+        for (p.x = bbMin.x; p.x <= bbMax.x; p.x++) {
             // note - could just do edge funcs for 2 of these and normalize using 2x triangle area, or 
             // compute all 3 and normalize sum to 1 to convert into barycentric coordinates - same
             // computationally as the triangle area sum is effectively just another call to edge2d...
@@ -89,8 +92,19 @@ void drawTriangle(ipoint2d const& a, ipoint2d const& b, ipoint2d const& c, TGAIm
             int wb = edge2d(c, a, p);
             int wc = edge2d(a, b, p);
 
-            if (wa >= 0 && wb >= 0 && wc >= 0)
-                img.set(p.x, p.y, col);
+            if (wa >= 0 && wb >= 0 && wc >= 0) {
+                // check against zbuffer, only write if less than zbuffer, then update it
+                // note we can simply interpolate Z as normal here since we are not working with
+                // world space Z values, but rather the (mapped) NDC Z values
+                float ba = wa / area_f;
+                float bb = wb / area_f;
+                float bc = wc / area_f;
+                float z = ba * depthA + bb * depthB + bc * depthC;
+                if (z < zbuffer[p.y * img.get_width() + p.x]) {
+                    img.set(p.x, p.y, col);
+                    zbuffer[p.y * img.get_width() + p.x] = z;
+                }
+            }
         }
     }
 }

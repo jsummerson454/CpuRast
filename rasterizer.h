@@ -8,4 +8,4 @@ struct ipoint2d {
 };
 
 void drawLine(int x0, int y0, int x1, int y1, TGAImage& img, const TGAColor& col);
-void drawTriangle(ipoint2d const& a, ipoint2d const& b, ipoint2d const& c, TGAImage& img, const TGAColor& col);
+void drawTriangle(ipoint2d const& a, ipoint2d const& b, ipoint2d const& c, float depthA, float depthB, float depthC, float* zbuffer, TGAImage& img, const TGAColor& col);
