@@ -47,7 +47,7 @@ void drawLine(int x0, int y0, int x1, int y1, TGAImage& img, const TGAColor& col
 
 // return edge orientation function (+ve if "inside" edge), also relates to barycentric coordinates
 // since this is proportional to the area of the triangle ABP (specifically 2x area of triangle)
-int edge2d(glm::ivec2 const& a, glm::ivec2 const& b, glm::ivec2 const& p) {
+int edge2d(ipoint2d const& a, ipoint2d const& b, ipoint2d const& p) {
     return (b.x - a.x) * (p.y - a.y) - (b.y - a.y) * (p.x - a.x);
 }
 
@@ -55,12 +55,12 @@ int edge2d(glm::ivec2 const& a, glm::ivec2 const& b, glm::ivec2 const& p) {
 // would draw a triangle, and hence is not well suited for serial CPU rendering - a scanline rasterization
 // approach would be more efficient in serial software rendering explicitly, but its poor parallelisation
 // means that for any SIMD capable processor or hardware implementation this approach is preferred.
-void drawTriangle(glm::ivec2 const& a, glm::ivec2 const& b, glm::ivec2 const& c, TGAImage& img, const TGAColor& col) {
+void drawTriangle(ipoint2d const& a, ipoint2d const& b, ipoint2d const& c, TGAImage& img, const TGAColor& col) {
     // compute bounding box of triangle
-    glm::ivec2 bbMin = glm::ivec2(std::min(std::min(a.x, b.x), c.x),
-        std::min(std::min(a.y, b.y), c.y));
-    glm::ivec2 bbMax = glm::ivec2(std::max(std::max(a.x, b.x), c.x),
-        std::max(std::max(a.y, b.y), c.y));
+    ipoint2d bbMin = ipoint2d{ std::min(std::min(a.x, b.x), c.x),
+        std::min(std::min(a.y, b.y), c.y) };
+    ipoint2d bbMax = ipoint2d{ std::max(std::max(a.x, b.x), c.x),
+        std::max(std::max(a.y, b.y), c.y) };
 
     // clip to image dimensions
     bbMin.x = std::max(bbMin.x, 0);
@@ -71,7 +71,7 @@ void drawTriangle(glm::ivec2 const& a, glm::ivec2 const& b, glm::ivec2 const& c,
 
     // Iterate over every pixel in bounding box, if pixel is within triangle (determined via edge signed 
     // distance functions, which closely relate to barycentric coordinates) then draw it.
-    glm::ivec2 p;
+    ipoint2d p{};
     for (p.x = bbMin.x; p.x <= bbMax.x; p.x++) {
         for (p.y = bbMin.y; p.y <= bbMax.y; p.y++) {
             // note - could just do edge funcs for 2 of these and normalize using 2x triangle area, or 

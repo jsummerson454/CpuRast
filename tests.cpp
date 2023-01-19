@@ -63,7 +63,7 @@ void orthogonalFaceModelTest() {
         // the triangles themselves into the triangular image
         for (unsigned int i = 0; i < aMesh->mNumFaces; i++) {
             aiFace face = aMesh->mFaces[i];
-            glm::ivec2 triangle[3];
+            ipoint2d triangle[3];
             for (unsigned int j = 0; j < face.mNumIndices; j++) {
                 int i0 = face.mIndices[j];
                 int i1 = face.mIndices[(j + 1) % face.mNumIndices];
@@ -78,7 +78,7 @@ void orthogonalFaceModelTest() {
 
                 drawLine(x0, y0, x1, y1, wireframe, white);
 
-                triangle[j] = glm::ivec2(x0, y0);
+                triangle[j] = ipoint2d{ x0, y0 };
             }
 
             TGAColor randomColor = TGAColor(rand() % 255, rand() % 255, rand() % 255, 255);
@@ -96,10 +96,10 @@ void triangleTest() {
     int width = 300;
     int height = 100;
     TGAImage triangles(width, height, TGAImage::RGB);
-    drawTriangle(glm::ivec2(-20, -20), glm::ivec2(50, -20), glm::ivec2(-20, 50), triangles, green);
-    drawTriangle(glm::ivec2(0, 0), glm::ivec2(30, 10), glm::ivec2(10, 30), triangles, red);
-    drawTriangle(glm::ivec2(250, 10), glm::ivec2(140, 50), glm::ivec2(160, 5), triangles, white);
-    drawTriangle(glm::ivec2(170, 50), glm::ivec2(140, 50), glm::ivec2(250, 10), triangles, blue);
+    drawTriangle(ipoint2d{ -20, -20 }, ipoint2d{ 50, -20 }, ipoint2d{ -20, 50 }, triangles, green);
+    drawTriangle(ipoint2d{ 0, 0 }, ipoint2d{ 30, 10 }, ipoint2d{ 10, 30 }, triangles, red);
+    drawTriangle(ipoint2d{ 250, 10 }, ipoint2d{ 140, 50 }, ipoint2d{ 160, 5 }, triangles, white);
+    drawTriangle(ipoint2d{ 170, 50 }, ipoint2d{ 140, 50 }, ipoint2d{ 250, 10 }, triangles, blue);
 
     triangles.flip_vertically(); // so that origin (0,0) is bottom left, not top left
     triangles.write_tga_file("triangles.tga");
