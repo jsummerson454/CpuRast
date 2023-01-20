@@ -3,6 +3,7 @@
 #include <assimp/scene.h>
 #include <glm/glm.hpp>
 #include "glm/gtc/matrix_transform.hpp"
+#include <glm/gtx/string_cast.hpp>
 
 #include "tgaimage.h"
 #include "rasterizer.h"
@@ -34,17 +35,17 @@ void lineTest() {
 void faceModelTest(bool perspective) {
     int width = 1280;
     int height = 720;
-    float* zbuffer = new float[height*width];
+    zbuffer_t* zbuffer = new zbuffer_t[height*width];
     for (int i = 0; i < height * width; i++) {
-        zbuffer[i] = 2.0;
+        zbuffer[i] = ZBUFFSCALE;
     }
     std::string modelPath = "Resources\\african_head.obj";
 
     TGAImage wireframe(width, height, TGAImage::RGB);
     TGAImage triangular(width, height, TGAImage::RGB);
 
-    glm::mat4 view = glm::lookAt(glm::vec3(50, 50, 100), glm::vec3(0.0), glm::vec3(0.0, 1.0, 0.0));
-    glm::mat4 projection = createProjectionMatrix(glm::radians(70.0), (float)width / height, 0.1, 1000.0);
+    glm::mat4 view = glm::lookAt(glm::vec3(1, 1, 3), glm::vec3(0.0), glm::vec3(0.0, 1.0, 0.0));
+    glm::mat4 projection = createProjectionMatrix(40.0, (float)width / height, 0.1, 100.0);
 
     Assimp::Importer importer;
     const aiScene* aScene = importer.ReadFile(modelPath,
@@ -69,6 +70,7 @@ void faceModelTest(bool perspective) {
             glm::vec3 vertex = glm::vec3(assimpVec.x, assimpVec.y, assimpVec.z);
             // apply MVP and perspective divide, end up with NDC coordinates
             if (perspective) {
+                auto debug_vertex_camera_pos = view * glm::vec4(vertex, 1.0);
                 vertex = perspectiveDivide(projection * view * glm::vec4(vertex, 1.0));
             }
             vertexPositions.push_back(vertex);
@@ -79,8 +81,8 @@ void faceModelTest(bool perspective) {
         // the triangles themselves into the triangular image
         for (unsigned int i = 0; i < aMesh->mNumFaces; i++) {
             aiFace face = aMesh->mFaces[i];
-            ipoint2d triangle[3];
-            float triangleDepths[3];
+            ipoint2d triangle[3] = {};
+            zbuffer_t triangleDepths[3] = {};
             for (unsigned int j = 0; j < face.mNumIndices; j++) {
                 int i0 = face.mIndices[j];
                 int i1 = face.mIndices[(j + 1) % face.mNumIndices];
@@ -98,11 +100,13 @@ void faceModelTest(bool perspective) {
                 drawLine(x0, y0, x1, y1, wireframe, white);
 
                 triangle[j] = ipoint2d{ x0, y0 };
+                // ASSUMING CLIPPED AND CULLED NEAR/FAR PLANES AT THIS POINT OF PIPELINE, hence no need for
+                // checking boundary conditions on NDC coordinates
                 // we also require the depth, so convert it from the [-1, 1] range to [0, 1] for now
-                // TODO - scale values to fit the buffer size as fixed point, i.e. values in range [0,255] for uint 8 buffer 
                 // (see https://www.khronos.org/opengl/wiki/Depth_Buffer_Precision)
-                triangleDepths[j] = (v0.z + 1.0)/2.0;
-
+                triangleDepths[j] = (zbuffer_t) std::roundf((0.5f * v0.z + 0.5f) * ZBUFFSCALE);
+                std::cout << v0.z << std::endl;
+                std::cout << (int)triangleDepths[j] << std::endl << std::endl;
             }
 
             TGAColor randomColor = TGAColor(rand() % 255, rand() % 255, rand() % 255, 255);
@@ -116,5 +120,5 @@ void faceModelTest(bool perspective) {
     triangular.flip_vertically();
     triangular.write_tga_file("triangular.tga");
 
-    delete zbuffer;
+    delete[] zbuffer;
 }

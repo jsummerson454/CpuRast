@@ -56,8 +56,8 @@ int edge2d(ipoint2d const& a, ipoint2d const& b, ipoint2d const& p) {
 // approach would be more efficient in serial software rendering explicitly, but its poor parallelisation
 // means that for any SIMD capable processor or hardware implementation this approach is preferred.
 void drawTriangle(ipoint2d const& a, ipoint2d const& b, ipoint2d const& c,
-                  float depthA, float depthB, float depthC,
-                  float* zbuffer, TGAImage& img, const TGAColor& col) {
+                  zbuffer_t depthA, zbuffer_t depthB, zbuffer_t depthC,
+                  zbuffer_t* zbuffer, TGAImage& img, const TGAColor& col) {
 
     int area = edge2d(a, b, c);
     // if area 0 then degenerate, if area <0 then backfacing (assuming all triangles correctly
@@ -65,7 +65,7 @@ void drawTriangle(ipoint2d const& a, ipoint2d const& b, ipoint2d const& c,
     if (area <= 0) {
         return;
     }
-    float area_f = area;
+    float normFactor = 1.0f/area;
 
     // compute bounding box of triangle
     ipoint2d bbMin = ipoint2d{ std::min(std::min(a.x, b.x), c.x),
@@ -96,11 +96,12 @@ void drawTriangle(ipoint2d const& a, ipoint2d const& b, ipoint2d const& c,
                 // check against zbuffer, only write if less than zbuffer, then update it
                 // note we can simply interpolate Z as normal here since we are not working with
                 // world space Z values, but rather the (mapped) NDC Z values
-                float ba = wa / area_f;
-                float bb = wb / area_f;
-                float bc = wc / area_f;
-                float z = ba * depthA + bb * depthB + bc * depthC;
-                if (z < zbuffer[p.y * img.get_width() + p.x]) {
+                float ba = wa * normFactor;
+                float bb = wb * normFactor;
+                float bc = wc * normFactor;
+                // 0.5 added to allow proper rounding when casting from float to zbuffer_t (unsigned integer)
+                zbuffer_t z = (zbuffer_t) (ba * depthA + bb * depthB + bc * depthC + 0.5);
+                if (z <= zbuffer[p.y * img.get_width() + p.x]) {
                     img.set(p.x, p.y, col);
                     zbuffer[p.y * img.get_width() + p.x] = z;
                 }
