@@ -4,7 +4,8 @@
 
 int main(int argc, char** argv) {
     //lineTest();
-	faceModelTest(true);
+	//faceModelTest(true);
+	zBufferTest(true);
 
 	return 0;
 }

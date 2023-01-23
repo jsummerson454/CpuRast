@@ -109,3 +109,59 @@ void drawTriangle(ipoint2d const& a, ipoint2d const& b, ipoint2d const& c,
         }
     }
 }
+
+// Note that this triangle drawing method is replicating the behaviour of how a GPU (massively parallel)
+// would draw a triangle, and hence is not well suited for serial CPU rendering - a scanline rasterization
+// approach would be more efficient in serial software rendering explicitly, but its poor parallelisation
+// means that for any SIMD capable processor or hardware implementation this approach is preferred.
+void rasterTriangle(rasterPoint const& a, rasterPoint const& b, rasterPoint const& c,
+                    zbuffer_t* zbuffer, TGAImage& img) {
+
+    int area = edge2d(a.pos, b.pos, c.pos);
+    // if area 0 then degenerate, if area <0 then backfacing (assuming all triangles correctly
+    // wound CCW), so reject early
+    if (area <= 0) {
+        return;
+    }
+    float normFactor = 1.0f / area;
+
+    // compute bounding box of triangle
+    ipoint2d bbMin = ipoint2d{ std::min(std::min(a.pos.x, b.pos.x), c.pos.x),
+        std::min(std::min(a.pos.y, b.pos.y), c.pos.y) };
+    ipoint2d bbMax = ipoint2d{ std::max(std::max(a.pos.x, b.pos.x), c.pos.x),
+        std::max(std::max(a.pos.y, b.pos.y), c.pos.y) };
+
+    // clip to image dimensions
+    bbMin.x = std::max(bbMin.x, 0);
+    bbMin.y = std::max(bbMin.y, 0);
+    bbMax.x = std::min(bbMax.x, img.get_width() - 1);
+    bbMax.y = std::min(bbMax.y, img.get_height() - 1);
+
+
+    // Iterate over every pixel in bounding box, if pixel is within triangle (determined via edge signed 
+    // distance functions, which closely relate to barycentric coordinates) then draw it.
+    ipoint2d p{};
+    for (p.y = bbMin.y; p.y <= bbMax.y; p.y++) {
+        for (p.x = bbMin.x; p.x <= bbMax.x; p.x++) {
+            int wa = edge2d(b.pos, c.pos, p);
+            int wb = edge2d(c.pos, a.pos, p);
+            int wc = edge2d(a.pos, b.pos, p);
+
+            if (wa >= 0 && wb >= 0 && wc >= 0) {
+                // barycentric coordinates
+                float ba = wa * normFactor;
+                float bb = wb * normFactor;
+                float bc = wc * normFactor;
+                // z buffer test, note can interpolate linearly here as the Z values are in NDC space, not world space
+                // 0.5 added to allow proper rounding when casting from float to zbuffer_t (unsigned integer)
+                zbuffer_t z = (zbuffer_t)(ZBUFFSCALE * (ba * a.z + bb * b.z + bc * c.z) + 0.5);
+                if (z < zbuffer[p.y * img.get_width() + p.x]) {
+                    zbuffer[p.y * img.get_width() + p.x] = z;
+                    // TODO - perspective correct interpolation...
+                    glm::vec3 col = ba * a.col + bb * b.col + bc * c.col;
+                    img.set(p.x, p.y, TGAColor(col.x, col.y, col.z, 1.0));
+                }
+            }
+        }
+    }
+}

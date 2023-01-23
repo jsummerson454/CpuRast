@@ -2,4 +2,4 @@
 
 void lineTest();
 void faceModelTest(bool perspective = false);
-void triangleTest();
+void zBufferTest(bool openGLComparison = false);
