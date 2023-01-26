@@ -1,17 +1,11 @@
 #pragma once
-#include "tgaimage.h"
+#include "External/tgaimage.h"
 #include "shaderProgram.h"
 #include <vector>
 
 struct ipoint2d {
 	int x, y;
 };
-
-// edge orientation function (+ve if "inside" edge), also relates to barycentric coordinates
-// since this is proportional to the area of the triangle ABP (specifically 2x area of triangle)
-int edge2d(ipoint2d const& a, ipoint2d const& b, ipoint2d const& p) {
-	return (b.x - a.x) * (p.y - a.y) - (b.y - a.y) * (p.x - a.x);
-}
 
 template <typename Vertex, typename Varying>
 class Renderer {
@@ -20,11 +14,19 @@ class Renderer {
 	float* m_zbuffer;
 	void draw_triangle(IShaderProgram<Vertex, Varying>& shaderProgram, Varying& a, Varying& b, Varying& c);
 	std::vector<Varying> processVertices(IShaderProgram<Vertex, Varying>& shaderProgram, std::vector<Vertex>& vertexBuffer);
+	int edge2d(ipoint2d const& a, ipoint2d const& b, ipoint2d const& p);
 public:
 	Renderer(int width, int height);
 	~Renderer();
 	void draw(IShaderProgram<Vertex, Varying>& shaderProgram, std::vector<Vertex>& vertexBuffer, std::vector<int>& indexBuffer);
 };
+
+// edge orientation function (+ve if "inside" edge), also relates to barycentric coordinates
+// since this is proportional to the area of the triangle ABP (specifically 2x area of triangle)
+template<typename Vertex, typename Varying>
+inline int Renderer<Vertex, Varying>::edge2d(ipoint2d const& a, ipoint2d const& b, ipoint2d const& p) {
+	return (b.x - a.x) * (p.y - a.y) - (b.y - a.y) * (p.x - a.x);
+}
 
 template<typename Vertex, typename Varying>
 inline Renderer<Vertex, Varying>::Renderer(int width, int height)
@@ -59,7 +61,7 @@ inline void Renderer<Vertex, Varying>::draw(IShaderProgram<Vertex, Varying>& sha
 	}
 
 	m_image.flip_vertically(); // so that origin (0,0) is bottom left, not top left
-	m_image.write_tga_file("refactored.tga");
+	m_image.write_tga_file("Output\\refactored.tga");
 }
 
 template<typename Vertex, typename Varying>
