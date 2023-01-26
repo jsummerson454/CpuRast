@@ -3,6 +3,9 @@
 #include "shaderProgram.h"
 #include <vector>
 
+typedef uint16_t zbuffer_t;
+constexpr auto ZBUFFMAX = std::numeric_limits<zbuffer_t>::max();
+
 struct ipoint2d {
 	int x, y;
 };
@@ -11,7 +14,7 @@ template <typename Vertex, typename Varying>
 class Renderer {
 	TGAImage m_image;
 	int m_width, m_height;
-	float* m_zbuffer;
+	zbuffer_t* m_zbuffer;
 	void draw_triangle(IShaderProgram<Vertex, Varying>& shaderProgram, Varying& a, Varying& b, Varying& c);
 	std::vector<Varying> processVertices(IShaderProgram<Vertex, Varying>& shaderProgram, std::vector<Vertex>& vertexBuffer);
 	int edge2d(ipoint2d const& a, ipoint2d const& b, ipoint2d const& p);
@@ -31,10 +34,9 @@ inline int Renderer<Vertex, Varying>::edge2d(ipoint2d const& a, ipoint2d const& 
 template<typename Vertex, typename Varying>
 inline Renderer<Vertex, Varying>::Renderer(int width, int height)
 {
-	// TODO: convert this back into the zbuffer_t stuff...
-	m_zbuffer = new float[width * height];
+	m_zbuffer = new zbuffer_t[width * height];
 	for (int i = 0; i < width * height; i++) {
-		m_zbuffer[i] = 1.f; // set to 1 as valid NDC coordinates are only in range [0,1]
+		m_zbuffer[i] = ZBUFFMAX;
 	}
 	m_image = TGAImage(width, height, TGAImage::RGB);
 	m_width = width;
@@ -73,7 +75,10 @@ inline std::vector<Varying> Renderer<Vertex, Varying>::processVertices(IShaderPr
 		ret[i] = shaderProgram.vertexShader(vertexBuffer[i]);
 
 		// perspective divide
-		ret[i].gl_Position = ret[i].gl_Position / ret[i].gl_Position.w;
+		ret[i].gl_Position.x = ret[i].gl_Position.x / ret[i].gl_Position.w;
+		ret[i].gl_Position.y = ret[i].gl_Position.y / ret[i].gl_Position.w;
+		ret[i].gl_Position.z = ret[i].gl_Position.z / ret[i].gl_Position.w;
+		ret[i].gl_Position.w = 1.f / ret[i].gl_Position.w;
 
 		// TODO: CLIPPING AND CULLING STAGE GOES HERE
 
@@ -132,13 +137,22 @@ inline void Renderer<Vertex, Varying>::draw_triangle(IShaderProgram<Vertex, Vary
 				float ba = wa * normFactor;
 				float bb = wb * normFactor;
 				float bc = wc * normFactor;
-				// TODO: z buffering with fixed size unsigned integers (zbuffer_t as before)
 				float z = ba * a.gl_Position.z + bb * b.gl_Position.z + bc * c.gl_Position.z;
-				if (z < m_zbuffer[p.y * m_width + p.x]) {
-					m_zbuffer[p.y * m_width + p.x] = z;
-					// TODO: perspective correct barycentrics before interpolation
+				// TODO: ONLY lazy clip on z if near/far plane clipping was skipped, as it is wasted effort otherwise
+				// Late/lazy z clipping (reject if out of NDC bounds, unnecessary if near/far clipping has been done)
+				if (z < 0 || z > 1) return;
+				zbuffer_t z_fixed = zbuffer_t(z * ZBUFFMAX + 0.5f);
+				if (z_fixed < m_zbuffer[p.y * m_width + p.x]) {
+					m_zbuffer[p.y * m_width + p.x] = z_fixed;
 					// TODO: make interpolation automatic, i.e. automatically interpolate all
 					// fields except gl_Position rather than forcing user to provide interpolation function
+					
+					// perspective correct barycentrics before interpolating varyings
+					float w = ba * a.gl_Position.w + bb * b.gl_Position.w + bc * c.gl_Position.w;
+					ba *= ((1.f/w) * a.gl_Position.w);
+					bb *= ((1.f/w) * b.gl_Position.w);
+					bc *= ((1.f/w) * c.gl_Position.w);
+
 					Varying interpolated = shaderProgram.interpolate(a, b, c, ba, bb, bc);
 					glm::vec3 col = shaderProgram.fragmentShader(interpolated);
 					col = col * glm::vec3(255) + glm::vec3(0.5); // convert from [0.f,1.f] colourspace to [0, 255] for TGAColor
