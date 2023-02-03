@@ -3,6 +3,8 @@
 #include "shaderProgram.h"
 #include <vector>
 
+//#define DISABLE_PERSPECTIVE_CORRECTION
+
 typedef uint16_t zbuffer_t;
 constexpr auto ZBUFFMAX = std::numeric_limits<zbuffer_t>::max();
 
@@ -18,6 +20,9 @@ class Renderer {
 	void draw_triangle(IShaderProgram<Vertex, Varying>& shaderProgram, Varying& a, Varying& b, Varying& c);
 	std::vector<Varying> processVertices(IShaderProgram<Vertex, Varying>& shaderProgram, std::vector<Vertex>& vertexBuffer);
 	int edge2d(ipoint2d const& a, ipoint2d const& b, ipoint2d const& p);
+	// disable copy constructor and assignment operator for now (don't need them)
+	Renderer(const Renderer&) = delete;
+	Renderer& operator=(const Renderer&) = delete;
 public:
 	Renderer(int width, int height);
 	~Renderer();
@@ -59,7 +64,11 @@ inline void Renderer<Vertex, Varying>::draw(IShaderProgram<Vertex, Varying>& sha
 
 	// Read each triangle from the index buffer and rasterize it
 	for (int i = 0; i < indexBuffer.size() - 2; i += 3) {
-		draw_triangle(shaderProgram, processedVertices[i], processedVertices[i + 1], processedVertices[i + 2]);
+		draw_triangle(shaderProgram,
+			processedVertices[indexBuffer[i]],
+			processedVertices[indexBuffer[i+1]],
+			processedVertices[indexBuffer[i+2]]
+		);
 	}
 
 	m_image.flip_vertically(); // so that origin (0,0) is bottom left, not top left
@@ -146,12 +155,14 @@ inline void Renderer<Vertex, Varying>::draw_triangle(IShaderProgram<Vertex, Vary
 					m_zbuffer[p.y * m_width + p.x] = z_fixed;
 					// TODO: make interpolation automatic, i.e. automatically interpolate all
 					// fields except gl_Position rather than forcing user to provide interpolation function
-					
+
+#ifndef DISABLE_PERSPECTIVE_CORRECTION
 					// perspective correct barycentrics before interpolating varyings
 					float w = ba * a.gl_Position.w + bb * b.gl_Position.w + bc * c.gl_Position.w;
 					ba *= ((1.f/w) * a.gl_Position.w);
 					bb *= ((1.f/w) * b.gl_Position.w);
 					bc *= ((1.f/w) * c.gl_Position.w);
+#endif
 
 					Varying interpolated = shaderProgram.interpolate(a, b, c, ba, bb, bc);
 					glm::vec3 col = shaderProgram.fragmentShader(interpolated);

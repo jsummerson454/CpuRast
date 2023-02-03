@@ -8,8 +8,16 @@ int main(int argc, char** argv) {
 		return -1;
 	}
 	if (strcmp("basic_example", argv[1]) == 0) {
-		std::cout << "Exectuing basic_example" << std::endl;
+		std::cout << "Executing basic_example" << std::endl;
 		return BasicExample::run(argv[2]);
+	}
+	if (strcmp("texture_tests", argv[1]) == 0) {
+		std::cout << "Executing texture_tests" << std::endl;
+		return TextureTests::runTests();
+	}
+	if (strcmp("checkerboard_example", argv[1]) == 0) {
+		std::cout << "Executing checkerboard_example" << std::endl;
+		return CheckerboardExample::run(argv[2]);
 	}
 	else {
 		std::cout << "Example name " << argv[1] << " not recognised" << std::endl;
