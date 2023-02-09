@@ -46,19 +46,15 @@ const glm::vec3 Sampler::operator()(float x, float y)
             float y_sample = y * (m_texture.get_height() - 1);
 
             int x1 = std::floorf(x_sample);
-            int x2 = std::ceilf(x_sample);
-            
+            // minor correction needed for sampling at 1.0, as then the upper sample point is out of bounds
+            x1 -= (x1 == m_texture.get_width() - 1) ? 1 : 0;
+            int x2 = x1 + 1;
 
             int y1 = std::floorf(y_sample);
-            int y2 = std::ceilf(y_sample);
-            
+            // minor correction needed for sampling at 1.0, as then the upper sample point is out of bounds
+            y1 -= (y1 == m_texture.get_height() - 1) ? 1 : 0;
+            int y2 = y1 + 1;
 
-            // minor correction needed for sampling at 0.0, as both x1 and x2 become 0
-            // same case for sampling at exactly 1.0, and for y coordinates
-            x2 += (x2 == 0 ? 1 : 0);
-            x1 -= (x1 == m_texture.get_width() - 1 ? 1 : 0);
-            y2 += (y2 == 0 ? 1 : 0);
-            y1 -= (y1 == m_texture.get_height() - 1 ? 1 : 0);
 
             // sample texture at 4 corners
             const RGB c11 = m_texture(x1, y1);
@@ -71,6 +67,8 @@ const glm::vec3 Sampler::operator()(float x, float y)
             float q12 = (x2 - x_sample) * (y_sample - y1);
             float q21 = (x_sample - x1) * (y2 - y_sample);
             float q22 = (x_sample - x1) * (y_sample - y1);
+
+            assert(q11 + q12 + q21 + q22 != 0);
 
             RGB lerp{};
             lerp.r = std::roundf(c11.r * q11 + c12.r * q12 + c21.r * q21 + c22.r * q22);
@@ -96,9 +94,8 @@ Sampler::Sampler(const char* path, samplingMode sampling, wrappingMode wrapping)
     m_wrapMode = wrapping;
 }
 
-Sampler::Sampler(Texture& texture, samplingMode sampling, wrappingMode wrapping)
-{
-    m_texture = Texture(texture);
-    m_sampleMode = sampling;
-    m_wrapMode = wrapping;
-}
+Sampler::Sampler(Texture& texture, samplingMode sampling, wrappingMode wrapping) :
+    m_sampleMode(sampling),
+    m_wrapMode(wrapping),
+    m_texture(texture)
+{}
