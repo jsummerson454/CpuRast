@@ -11,3 +11,7 @@ namespace CheckerboardExample {
 namespace TextureTests {
 	int runTests();
 }
+
+namespace ModelExample {
+	int run();
+}

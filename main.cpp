@@ -19,6 +19,10 @@ int main(int argc, char** argv) {
 		std::cout << "Executing checkerboard_example" << std::endl;
 		return CheckerboardExample::run(argv[2]);
 	}
+	if (strcmp("model_example", argv[1]) == 0) {
+		std::cout << "Executing model_example" << std::endl;
+		return ModelExample::run();
+	}
 	else {
 		std::cout << "Example name " << argv[1] << " not recognised" << std::endl;
 		return -2;

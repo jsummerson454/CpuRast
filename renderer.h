@@ -167,7 +167,7 @@ inline void Renderer<Vertex, Varying>::draw_triangle(IShaderProgram<Vertex, Vary
 #endif
 
 					Varying interpolated = shaderProgram.interpolate(a, b, c, ba, bb, bc);
-					glm::vec3 col = shaderProgram.fragmentShader(interpolated);
+					glm::vec3 col = glm::clamp(shaderProgram.fragmentShader(interpolated), 0.f, 1.f);
 					col = col * glm::vec3(255) + glm::vec3(0.5); // convert from [0.f,1.f] colourspace to [0, 255] for TGAColor
 					m_image.set(p.x, p.y, TGAColor(col.x, col.y, col.z, 1));
 				}
