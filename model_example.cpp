@@ -180,7 +180,7 @@ namespace ModelExample {
 			}
 		}
 
-		renderer.draw(program, vertices, indices);
+		renderer.draw(program, vertices, indices, "Output/model_example.tga");
 
 		return 0;
 	}

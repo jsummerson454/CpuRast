@@ -3,6 +3,11 @@
 #include "shaderProgram.h"
 #include <vector>
 
+// 28.4 fixed point subpixel precision, hence values scaled by 2^4=16
+#define PRECISION_BITS 4
+constexpr int PRECISION = 1 << PRECISION_BITS;
+constexpr int HALF = 1 << PRECISION_BITS - 1;
+
 //#define DISABLE_PERSPECTIVE_CORRECTION
 
 typedef uint16_t zbuffer_t;
@@ -26,7 +31,7 @@ class Renderer {
 public:
 	Renderer(int width, int height);
 	~Renderer();
-	void draw(IShaderProgram<Vertex, Varying>& shaderProgram, std::vector<Vertex>& vertexBuffer, std::vector<int>& indexBuffer);
+	void draw(IShaderProgram<Vertex, Varying>& shaderProgram, std::vector<Vertex>& vertexBuffer, std::vector<int>& indexBuffer, const char* filename);
 };
 
 // edge orientation function (+ve if "inside" edge), also relates to barycentric coordinates
@@ -57,7 +62,7 @@ inline Renderer<Vertex, Varying>::~Renderer()
 // TODO: consider adding a Buffer class rather than passing a vertex and index buffer, then can maybe just use a
 // get next triangle function or something instead of having to overload the function for an unindexed verison...
 template<typename Vertex, typename Varying>
-inline void Renderer<Vertex, Varying>::draw(IShaderProgram<Vertex, Varying>& shaderProgram, std::vector<Vertex>& vertexBuffer, std::vector<int>& indexBuffer)
+inline void Renderer<Vertex, Varying>::draw(IShaderProgram<Vertex, Varying>& shaderProgram, std::vector<Vertex>& vertexBuffer, std::vector<int>& indexBuffer, const char* filename)
 {
 	// Vertex processing stage (vertex shader, perspective divide, viewport transformation)
 	std::vector<Varying> processedVertices = processVertices(shaderProgram, vertexBuffer);
@@ -72,7 +77,7 @@ inline void Renderer<Vertex, Varying>::draw(IShaderProgram<Vertex, Varying>& sha
 	}
 
 	m_image.flip_vertically(); // so that origin (0,0) is bottom left, not top left
-	m_image.write_tga_file("Output\\refactored.tga");
+	m_image.write_tga_file(filename);
 }
 
 template<typename Vertex, typename Varying>
@@ -108,9 +113,9 @@ inline void Renderer<Vertex, Varying>::draw_triangle(IShaderProgram<Vertex, Vary
 	// snap triangle corners to integer pixel grid
 	// TODO: sub-pixel precision (e.g. 28.4 or 26.6 fixed point integer arithmetic) - do not forget to evaluate
 	// at pixel CENTERS (e.g. x=5.5, y=6.5 instead of x=5, y=6) when performing pixel membership tests
-	ipoint2d a_pos = { std::roundf(a.gl_Position.x), std::roundf(a.gl_Position.y) };
-	ipoint2d b_pos = { std::roundf(b.gl_Position.x), std::roundf(b.gl_Position.y) };
-	ipoint2d c_pos = { std::roundf(c.gl_Position.x), std::roundf(c.gl_Position.y) };
+	ipoint2d a_pos = { std::roundf(a.gl_Position.x * PRECISION), std::roundf(a.gl_Position.y * PRECISION) };
+	ipoint2d b_pos = { std::roundf(b.gl_Position.x * PRECISION), std::roundf(b.gl_Position.y * PRECISION) };
+	ipoint2d c_pos = { std::roundf(c.gl_Position.x * PRECISION), std::roundf(c.gl_Position.y * PRECISION) };
 
 	int area = edge2d(a_pos, b_pos, c_pos);
 	// if area 0 then degenerate, if area <0 then backfacing (assuming all triangles correctly
@@ -126,21 +131,25 @@ inline void Renderer<Vertex, Varying>::draw_triangle(IShaderProgram<Vertex, Vary
 	ipoint2d bbMax = ipoint2d{ std::max(std::max(a_pos.x, b_pos.x), c_pos.x),
 		std::max(std::max(a_pos.y, b_pos.y), c_pos.y) };
 
-	// clip to image dimensions
-	bbMin.x = std::max(bbMin.x, 0);
-	bbMin.y = std::max(bbMin.y, 0);
-	bbMax.x = std::min(bbMax.x, m_width - 1);
-	bbMax.y = std::min(bbMax.y, m_height - 1);
+	// clip to image dimensions (and convert to pixel grid integers)
+	bbMin.x = (std::max(bbMin.x, 0) + HALF) >> PRECISION_BITS;
+	bbMin.y = (std::max(bbMin.y, 0) + HALF) >> PRECISION_BITS;
+	bbMax.x = (std::min(bbMax.x, m_width * PRECISION - 1) - HALF) >> PRECISION_BITS;
+	bbMax.y = (std::min(bbMax.y, m_height * PRECISION - 1) - HALF) >> PRECISION_BITS;
 
 	// Iterate over every pixel in bounding box, if pixel is within triangle (determined via edge signed 
 	// distance functions, which closely relate to barycentric coordinates) then draw it.
 	ipoint2d p{};
 	for (p.y = bbMin.y; p.y <= bbMax.y; p.y++) {
 		for (p.x = bbMin.x; p.x <= bbMax.x; p.x++) {
-			int wa = edge2d(b_pos, c_pos, p);
-			int wb = edge2d(c_pos, a_pos, p);
-			int wc = edge2d(a_pos, b_pos, p);
+			// bit messy having to convert from integer pixels to fixed point pixel centers, but this
+			// problem will solve itself when switching to the more efficient increment based loop
+			ipoint2d pF = { (p.x << PRECISION_BITS) + HALF, (p.y << PRECISION_BITS) + HALF };
+			int wa = edge2d(b_pos, c_pos, pF);
+			int wb = edge2d(c_pos, a_pos, pF);
+			int wc = edge2d(a_pos, b_pos, pF);
 
+			// TODO: top left rule so not double draw edges
 			if (wa >= 0 && wb >= 0 && wc >= 0) {
 				// check against zbuffer, only write if less than zbuffer, then update it
 				// note we can simply interpolate Z as normal here since we are not working with

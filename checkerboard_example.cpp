@@ -74,7 +74,7 @@ namespace CheckerboardExample {
 		// Two triangles forming the plane quad
 		std::vector<int> indices{ 0, 2, 1, 1, 2, 3 };
 
-		renderer.draw(program, vertices, indices);
+		renderer.draw(program, vertices, indices, "Output/checkerboard_example.tga");
 
         if (!openGLComparison) return 0;
         // OPENGL COMPARISON RENDER - openGL complains about rendering without device context, which is

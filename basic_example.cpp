@@ -82,7 +82,7 @@ namespace BasicExample {
 
 		std::vector<int> indices{ 0, 1, 2, 3, 4, 5 };
 
-		renderer.draw(program, vertices, indices);
+		renderer.draw(program, vertices, indices, "Output/basic_example.tga");
 
 		if (!openGLComparison) return 0;
         // OPENGL COMPARISON RENDER - openGL complains about rendering without device context, which is
