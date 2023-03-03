@@ -97,6 +97,7 @@ inline std::vector<Varying> Renderer<Vertex, Varying>::processVertices(IShaderPr
 		// TODO: CLIPPING AND CULLING STAGE GOES HERE
 		// (actually no since clipping and culling is performed on primitives, not on
 		// vertices, so will require a bit of refactoring to implement)
+		// should be done after vertex processing as part of primitive assembly
 
 		// viewport transform from NDC [-1,1] to screenspace ([0, width], [0, height], [0, 1]) coordinates
 		ret[i].gl_Position.x = (ret[i].gl_Position.x + 1.f) * m_width / 2.f;

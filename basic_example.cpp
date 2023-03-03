@@ -10,6 +10,7 @@
 
 #define STB_IMAGE_WRITE_IMPLEMENTATION
 #include "stb_image_write.h"
+#include "examples.h"
 
 // A minimal example to showcase how the rendering framework works
 // User must define themselves: Vertex struct, Varying struct, ShaderProgram (complete with
@@ -85,6 +86,11 @@ namespace BasicExample {
 		renderer.draw(program, vertices, indices, "Output/basic_example.tga");
 
 		if (!openGLComparison) return 0;
+        return OpenGLRender(width, height, vertices, projection, view);
+	}
+
+    int OpenGLRender(int width, int height, std::vector<Vertex>& vertices, glm::mat4& projection, glm::mat4& view)
+    {
         // OPENGL COMPARISON RENDER - openGL complains about rendering without device context, which is
         // typically attached to a window, so we create a window anyway despite rendering to an image file
         glfwInit();
@@ -217,5 +223,5 @@ namespace BasicExample {
         glfwTerminate();
 
         return 0;
-	}
+    }
 }

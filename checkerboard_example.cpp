@@ -11,6 +11,7 @@
 
 #include <stb_image_write.h>
 #include "External/stb_image.h"
+#include "examples.h"
 
 namespace CheckerboardExample {
 	struct Vertex {
@@ -77,6 +78,11 @@ namespace CheckerboardExample {
 		renderer.draw(program, vertices, indices, "Output/checkerboard_example.tga");
 
         if (!openGLComparison) return 0;
+        return OpenGLRender(width, height, vertices, indices, projection, view);
+	}
+
+    int OpenGLRender(int width, int height, std::vector<Vertex>& vertices, std::vector<int>& indices, glm::mat4& projection, glm::mat4& view)
+    {
         // OPENGL COMPARISON RENDER - openGL complains about rendering without device context, which is
         // typically attached to a window, so we create a window anyway despite rendering to an image file
         glfwInit();
@@ -197,7 +203,7 @@ namespace CheckerboardExample {
         glBindTexture(GL_TEXTURE_2D, texture);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_MIRRORED_REPEAT);	
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_MIRRORED_REPEAT);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_MIRRORED_REPEAT);
         glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, imWidth, imHeight, 0, GL_RGB, GL_UNSIGNED_BYTE, data);
         //glGenerateMipmap(GL_TEXTURE_2D);
@@ -232,5 +238,5 @@ namespace CheckerboardExample {
         glfwTerminate();
 
         return 0;
-	}
+    }
 }
